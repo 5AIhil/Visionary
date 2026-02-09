@@ -22,7 +22,9 @@ client = Client(host='http://127.0.0.1:11434')
 
 # --- 1. DATABASE SETUP (RESTORED) ---
 def init_db():
-    conn = sqlite3.connect('visionary.db')
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    db_path = os.path.join(BASE_DIR, 'visionary.db')
+    conn = sqlite3.connect(db_path)
     c = conn.cursor()
     # Create table for logs so Dashboard doesn't crash
     c.execute('''CREATE TABLE IF NOT EXISTS logs 
@@ -96,7 +98,9 @@ async def analyze_image(request: AnalysisRequest):
         ai_response_text = f"{verdict} | Scene: {scene_desc[:50]}..."
 
         # --- D. LOG TO DATABASE (CRITICAL RESTORED STEP) ---
-        conn = sqlite3.connect('visionary.db')
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        db_path = os.path.join(BASE_DIR, 'visionary.db')
+        conn = sqlite3.connect(db_path)
         c = conn.cursor()
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         # We log the prompt as "RAG Check" so the dashboard knows what happened

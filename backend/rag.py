@@ -5,7 +5,8 @@ from langchain_ollama import OllamaEmbeddings
 from langchain_chroma import Chroma
 
 # CONFIG
-DB_PATH = "./chroma_db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "chroma_db")
 EMBED_MODEL = "nomic-embed-text"
 
 # 1. INITIALIZE VECTOR DB
