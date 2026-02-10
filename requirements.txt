@@ -1,0 +1,13 @@
+streamlit
+pandas
+fastapi
+uvicorn
+ollama
+langchain
+langchain_community
+langchain_chroma
+langchain_ollama
+pydantic
+python-dotenv
+requests
+opencv-python

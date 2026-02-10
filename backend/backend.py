@@ -5,34 +5,22 @@ from ollama import Client
 import base64
 import shutil
 import os
-import sqlite3
 from datetime import datetime
 from dotenv import load_dotenv
-import requests
 
-# IMPORT THE NEW RAG ENGINE
-from rag import ingest_policy_document, check_policy_violation
+# MODULE IMPORTS
+from rag import ingest_policy_document, check_policy_violation, generate_safety_prompt
+from database import init_db, log_event
+from alerts import send_telegram_alert
 
 load_dotenv()
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+SYSTEM_PROMPT_FILE = "system_prompt.txt"
 
 app = FastAPI()
 client = Client(host='http://127.0.0.1:11434')
 
-# --- 1. DATABASE SETUP (RESTORED) ---
-def init_db():
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    db_path = os.path.join(BASE_DIR, 'visionary.db')
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    # Create table for logs so Dashboard doesn't crash
-    c.execute('''CREATE TABLE IF NOT EXISTS logs 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT, prompt TEXT, result TEXT)''')
-    conn.commit()
-    conn.close()
-
-init_db()  # <--- Run this immediately on start
+# Initialize DB on start
+init_db()
 
 # --- 2. UPLOAD ENDPOINT ---
 @app.post("/upload_policy")
@@ -44,30 +32,73 @@ async def upload_policy(file: UploadFile = File(...)):
         
     ingest_policy_document(file_location)
     
+    # Generate and save dynamic prompt
+    new_prompt = generate_safety_prompt(file_location)
+    
+    # Save to file
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    prompt_path = os.path.join(BASE_DIR, SYSTEM_PROMPT_FILE)
+    with open(prompt_path, "w") as f:
+        f.write(new_prompt)
+    
     os.remove(file_location)
-    return {"status": "success", "message": "Policy learned successfully!"}
+    return {"status": "success", "message": "Policy learned & Safety Prompt Updated!"}
 
 class AnalysisRequest(BaseModel):
     image_base64: str
 
-def send_telegram_alert(violation_text, rule_broken):
-    if not TELEGRAM_TOKEN: return
-    msg = f"🚨 COMPLIANCE ALERT!\n\n👀 Observed: {violation_text}\n\n📜 Rule Violated: {rule_broken[:200]}..."
-    requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
-                  json={"chat_id": TELEGRAM_CHAT_ID, "text": msg})
+# --- GLOBAL STATE ---
+IS_ACTIVE = False  # Default to paused
 
-# --- 3. ANALYZE ENDPOINT (UPDATED TO LOG) ---
+class ToggleRequest(BaseModel):
+    active: bool
+
+@app.get("/status")
+def get_status():
+    return {"active": IS_ACTIVE}
+
+@app.post("/toggle")
+def toggle_status(request: ToggleRequest):
+    global IS_ACTIVE
+    IS_ACTIVE = request.active
+    state = "ACTIVE" if IS_ACTIVE else "PAUSED"
+    print(f"🔄 System State Updated: {state}")
+    return {"status": "success", "active": IS_ACTIVE}
+
+# --- 3. ANALYZE ENDPOINT ---
 @app.post("/analyze")
 async def analyze_image(request: AnalysisRequest):
+    # Check if system is active
+    if not IS_ACTIVE:
+        return {"status": "paused", "ai_response": "Running... (Paused)"}
+
     print("📩 Processing Frame for Compliance...")
     ai_response_text = "Processing..." # Default value
     
+    # Load dynamic prompt if available
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    prompt_path = os.path.join(BASE_DIR, SYSTEM_PROMPT_FILE)
+    
+    # Default fallback if no policy loaded
+    system_instruction = "You are a Safety Officer. Describe the scene and identify any hazards."
+    
+    if os.path.exists(prompt_path):
+        with open(prompt_path, "r") as f:
+            # STRICT MODE: Use the generated prompt exactly as is.
+            system_instruction = f.read().strip()
+            
+    print(f"   🤖 Using Prompt: {system_instruction[:50]}...")
+
+    compliance_prompt_log = "N/A" # Default for logging if no rules found
+    image_path_log = "" # Default empty path
+
     try:
         # A. SEE
         image_bytes = base64.b64decode(request.image_base64)
         desc_response = client.chat(
             model='llava-phi3',
-            messages=[{'role': 'user', 'content': "Describe this scene in detail. List safety gear worn or missing.", 'images': [image_bytes]}]
+            messages=[{'role': 'user', 'content': system_instruction, 'images': [image_bytes]}],
+            options={'num_predict': 128} # Optimize speed: limit output length
         )
         scene_desc = desc_response['message']['content']
         print(f"   👁️ Scene: {scene_desc}")
@@ -83,32 +114,45 @@ async def analyze_image(request: AnalysisRequest):
             OFFICIAL POLICY: {relevant_rules}
             TASK: Does the scene violate the policy? If YES, output "VIOLATION: [Reason]". If NO, output "COMPLIANT".
             """
+            compliance_prompt_log = compliance_prompt # Store for logging
             
             judge_response = client.chat(
                 model='llava-phi3', 
-                messages=[{'role': 'user', 'content': compliance_prompt}]
+                messages=[{'role': 'user', 'content': compliance_prompt}],
+                options={'num_predict': 128} # Optimize speed
             )
             verdict = judge_response['message']['content']
             print(f"   ⚖️ Verdict: {verdict}")
 
             if "VIOLATION" in verdict.upper():
-                send_telegram_alert(scene_desc, relevant_rules)
+                send_telegram_alert(verdict, scene_desc, relevant_rules)
+                
+                # --- AUTO-CAPTURE EVIDENCE ---
+                timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"violation_{timestamp_str}.jpg"
+                evidence_path = os.path.join(BASE_DIR, "evidence", filename)
+                
+                with open(evidence_path, "wb") as f:
+                    f.write(image_bytes)
+                
+                print(f"   📸 Saved Evidence: {filename}")
+                image_path_log = filename 
+                # -----------------------------
         
         # Set final text for database
         ai_response_text = f"{verdict} | Scene: {scene_desc[:50]}..."
 
-        # --- D. LOG TO DATABASE (CRITICAL RESTORED STEP) ---
-        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-        db_path = os.path.join(BASE_DIR, 'visionary.db')
-        conn = sqlite3.connect(db_path)
-        c = conn.cursor()
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        # We log the prompt as "RAG Check" so the dashboard knows what happened
-        c.execute("INSERT INTO logs (timestamp, prompt, result) VALUES (?, ?, ?)", 
-                  (timestamp, "Compliance Check", ai_response_text))
-        conn.commit()
-        conn.close()
-        # ---------------------------------------------------
+        # --- D. LOG TO DATABASE ---
+        log_event(
+            prompt_type="Compliance Check",
+            result=ai_response_text,
+            instruction=system_instruction,
+            scene=scene_desc,
+            compliance_prompt=compliance_prompt_log,
+            verdict=verdict,
+            image_path=image_path_log
+        )
+        # --------------------------
 
         return {"status": "success", "ai_response": verdict}
 

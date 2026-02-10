@@ -7,7 +7,9 @@ API_URL = "http://localhost:8000/analyze"
 CHECK_INTERVAL = 10 # Send an image every 10 seconds
 
 def send_frame(frame):
-    _, buffer = cv2.imencode('.jpg', frame)
+    # Optimizing: Resize image to speed up transmission and processing
+    frame_resized = cv2.resize(frame, (640, 480))
+    _, buffer = cv2.imencode('.jpg', frame_resized)
     jpg_as_text = base64.b64encode(buffer).decode('utf-8')
     
     try:

@@ -42,3 +42,46 @@ def check_policy_violation(scene_description):
     # Combine rules into a single text block
     retrieved_context = "\n".join([doc.page_content for doc in results])
     return retrieved_context, results
+
+# 4. GENERATE SYSTEM PROMPT (The "Teacher" Phase)
+from ollama import Client
+
+def generate_safety_prompt(file_path):
+    print(f"🧠 Generating Safety Prompt from: {file_path}")
+    
+    # Load PDF text
+    loader = PyPDFLoader(file_path)
+    docs = loader.load()
+    full_text = "\n".join([doc.page_content for doc in docs])
+    
+    # Truncate if too long (approx 10k chars to fit context)
+    if len(full_text) > 10000:
+        full_text = full_text[:10000] + "...(truncated)"
+
+    client = Client(host='http://127.0.0.1:11434')
+    
+    instruction = f"""
+    You are an expert Security Consultant.
+    
+    ACTION: Read the safety policy below and write a "System Instruction" for a Computer Vision AI.
+    
+    The System Instruction must:
+    1. Define the AI's role: "You are a Safety Compliance Officer responsible for..."
+    2. List the specific rules it must enforce based on the text.
+    3. Be strict and direct.
+    
+    OUTPUT FORMAT:
+    "You are a Safety Compliance Officer. Your task is to monitor the feed for [Key Hazards]. You must flag [Specific Violations]. If you see [Safe Behavior], mark it as compliant."
+    
+    POLICY CONTENT:
+    {full_text}
+    """
+    
+    response = client.chat(
+        model='llava-phi3',
+        messages=[{'role': 'user', 'content': instruction}]
+    )
+    
+    generated_prompt = response['message']['content']
+    print(f"✨ Generated Prompt: {generated_prompt}")
+    return generated_prompt
