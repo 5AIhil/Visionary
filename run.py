@@ -8,9 +8,9 @@ import os
 # List of commands to run
 commands = [
     ["ollama", "serve"],
-    ["python3", "backend/backend.py"],
-    ["streamlit", "run", "frontend/dash.py"],
-    ["python3", "frontend/camera.py"]
+    [sys.executable, "backend/backend.py"],
+    [sys.executable, "-m", "streamlit", "run", "frontend/dash.py"],
+    [sys.executable, "frontend/camera.py"]
 ]
 
 procs = []
