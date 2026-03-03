@@ -9,10 +9,13 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "chroma_db")
 EMBED_MODEL = "nomic-embed-text"
 
-# 1. INITIALIZE VECTOR DB
+# 1. INITIALIZE VECTOR DB (Persistent Global Connection)
+print("🔌 Initializing Vector Database connection...")
+_embeddings = OllamaEmbeddings(model=EMBED_MODEL)
+_db_instance = Chroma(persist_directory=DB_PATH, embedding_function=_embeddings)
+
 def get_vector_db():
-    embeddings = OllamaEmbeddings(model=EMBED_MODEL)
-    return Chroma(persist_directory=DB_PATH, embedding_function=embeddings)
+    return _db_instance
 
 # 2. INGEST PDF (The "Learning" Phase)
 def ingest_policy_document(file_path):

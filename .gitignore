@@ -21,6 +21,8 @@ coverage.xml
 .pytest_cache
 .hypothes
 
+reference.md
+
 # Project Specific
 backend/visionary.db
 backend/evidence/
