@@ -12,16 +12,28 @@ The system is built with a modular, scalable architecture designed for maintaina
 
 ```mermaid
 graph TD
-    A[Camera Agent] -->|Resize & Stream 0.1FPS| B(Backend API)
-    B -->|Ingest PDF| C[RAG Engine]
-    C -->|Generate Persona| D[System Prompt]
-    B -->|Frame + Prompt| E[LLaVA-phi3 Model]
-    E -->|Verdict| F{Violation?}
-    F -->|Yes| G[Evidence Vault]
-    F -->|Yes| H[Telegram Alert]
-    F -->|Log Event| I[(SQLite DB)]
-    J[Streamlit Dashboard] <-->|Sync State| B
-    J <-->|Read Logs| I
+    %% Initial Phase: Policy Ingestion
+    subgraph Initial Setup
+    PDF[Policy PDF] -->|Extract Text| CleanText[Text Cleansing]
+    CleanText -->|Chunking| Chunks[Text Chunks]
+    Chunks -->|Nomic Embeddings| Chroma[(Chroma DB)]
+    Chroma -->|Synthesize Rules| LLM[LLM Context Generation]
+    LLM -->|Create| Prompt[Custom System Prompt]
+    end
+
+    %% Real-time Monitoring Phase
+    subgraph Real-Time Vision Monitoring
+    Camera[Camera Agent] -->|Resize & Stream 0.1FPS| API(Backend API)
+    API -->|Frame + Prompt| VLM[LLaVA-phi3 Vision Model]
+    VLM -->|Verdict| Decision{Violation?}
+    Decision -->|Yes| Vault[Evidence Vault]
+    Decision -->|Yes| Alert[Telegram Alert]
+    Decision -->|Log Event| DB[(SQLite DB)]
+    Dash[Streamlit Dashboard] <-->|Sync State| API
+    Dash <-->|Read Logs| DB
+    end
+    
+    Prompt -.->|Guides| VLM
 ```
 
 ---
@@ -56,7 +68,6 @@ graph TD
 - **Backend**: FastAPI, SQLite
 - **Frontend**: Streamlit
 - **Vision**: OpenCV
-- **DevOps**: Modular file structure, Environment Config (.env)
 
 ---
 
@@ -87,9 +98,20 @@ Visionary/
 ## 🚀 Getting Started
 
 ### Prerequisites
-1.  **Python 3.10+** installed.
-2.  **Ollama** installed and running (`ollama serve`).
-3.  **Model**: Pull the vision model: `ollama pull llava-phi3` & embed model: `ollama pull nomic-embed-text`.
+1. **Python 3.10+** installed.
+2. **Ollama** installed:
+   - **macOS/Linux**: `curl -fsSL https://ollama.com/install.sh | sh` or `brew install ollama`
+   - **Windows**: Download from [ollama.com](https://ollama.com/download)
+3. **Start Ollama** (if not running in background):
+   ```bash
+   ollama serve
+   ```
+4. **Pull Required AI Models**:
+   The system requires a Vision model (`llava-phi3`) and an Embedding model (`nomic-embed-text`). Run these commands in your terminal:
+   ```bash
+   ollama pull llava-phi3
+   ollama pull nomic-embed-text
+   ```
 
 ### Installation
 
@@ -98,12 +120,16 @@ Visionary/
     ```bash
     pip install -r requirements.txt
     ```
-3.  (Optional) Setup Telegram Alerts:
-    - Create a `.env` file in `backend/` with:
-        ```env
-        TELEGRAM_TOKEN=your_token
-        TELEGRAM_CHAT_ID=your_chat_id
-        ```
+### Setup Telegram Alerts (Optional)
+To receive real-time notifications on your phone:
+1. **Get Bot Token**: Open Telegram, search and start `@BotFather`. Send `/newbot`, choose a name and username ending in `bot`. Copy the `TELEGRAM_TOKEN` provided.
+2. **Get Chat ID**: Search and start `@userinfobot` to get your `Id`. Copy this as your `TELEGRAM_CHAT_ID`.
+3. **Activate Bot**: Search for your bot's username and click **Start** (mandatory to allow messages).
+4. **Configure Project**: Create a `.env` file in the `backend/` directory:
+   ```env
+   TELEGRAM_TOKEN=your_copied_token
+   TELEGRAM_CHAT_ID=your_copied_chat_id
+   ```
 
 ### Usage
 
