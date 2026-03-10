@@ -98,7 +98,7 @@ async def analyze_image(request: AnalysisRequest):
         desc_response = client.chat(
             model='llava-phi3',
             messages=[{'role': 'user', 'content': system_instruction, 'images': [image_bytes]}],
-            options={'num_predict': 128} # Optimize speed: limit output length
+            options={'num_predict': 256} # Increase limit to support bounding box coordinate logic
         )
         scene_desc = desc_response['message']['content']
         print(f"   👁️ Scene: {scene_desc}")

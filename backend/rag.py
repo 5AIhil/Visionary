@@ -71,10 +71,11 @@ def generate_safety_prompt(file_path):
     The System Instruction must:
     1. Define the AI's role: "You are a Safety Compliance Officer responsible for..."
     2. List the specific rules it must enforce based on the text.
-    3. Be strict and direct.
+    3. Instruct the AI to explicitly use spatial reasoning. Tell it to output findings using bounding box layouts in the format [x_min, y_min, x_max, y_max] or use relative position markers (e.g. 'Subject at [top-left] is too close to the hazard at [bottom-right]') to accurately map metrics.
+    4. Be strict and direct.
     
     OUTPUT FORMAT:
-    "You are a Safety Compliance Officer. Your task is to monitor the feed for [Key Hazards]. You must flag [Specific Violations]. If you see [Safe Behavior], mark it as compliant."
+    "You are a Safety Compliance Officer. Your task is to monitor the feed for [Key Hazards]. You must flag [Specific Violations]. If you see [Safe Behavior], mark it as compliant. Always describe locations using explicit bounding box coordinates [x1, y1, x2, y2] to identify actors and threats precisely."
     
     POLICY CONTENT:
     {full_text}
