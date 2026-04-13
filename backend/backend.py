@@ -17,7 +17,8 @@ load_dotenv()
 SYSTEM_PROMPT_FILE = "system_prompt.txt"
 
 app = FastAPI()
-client = Client(host='http://127.0.0.1:11434')
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
+client = Client(host=OLLAMA_HOST)
 
 # Initialize DB on start
 init_db()
@@ -98,7 +99,7 @@ async def analyze_image(request: AnalysisRequest):
         desc_response = client.chat(
             model='llava-phi3',
             messages=[{'role': 'user', 'content': system_instruction, 'images': [image_bytes]}],
-            options={'num_predict': 256} # Increase limit to support bounding box coordinate logic
+            options={'num_predict': 256} 
         )
         scene_desc = desc_response['message']['content']
         print(f"   👁️ Scene: {scene_desc}")

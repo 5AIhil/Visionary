@@ -14,7 +14,8 @@ st.set_page_config(page_title="Visionary Command Center", layout="wide", page_ic
 apply_custom_css()
 
 # API CONFIG
-API_URL = "http://localhost:8000/update_prompt"
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
+API_URL = f"{BACKEND_URL}/update_prompt"
 
 # DATA FETCHING
 def get_logs(date_filter=None, violation_only=False):

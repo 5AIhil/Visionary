@@ -3,12 +3,14 @@ import os
 import requests
 import time
 
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
+
 def try_toggle_backend(active):
     """Retries backend connection for up to 60 seconds."""
     start_time = time.time()
     while time.time() - start_time < 60:
         try:
-            requests.post("http://localhost:8000/toggle", json={"active": active}, timeout=5)
+            requests.post(f"{BACKEND_URL}/toggle", json={"active": active}, timeout=5)
             return True
         except:
             time.sleep(2)
@@ -30,7 +32,7 @@ def render_sidebar():
         if 'started' not in st.session_state:
             try:
                 # Sync with Backend State
-                resp = requests.get("http://localhost:8000/status", timeout=2)
+                resp = requests.get(f"{BACKEND_URL}/status", timeout=2)
                 if resp.status_code == 200:
                     st.session_state['started'] = resp.json().get("active", False)
                 else:
@@ -65,7 +67,7 @@ def render_sidebar():
                     files = {"file": uploaded_file.getvalue()}
                     # Send file to Backend
                     try:
-                        response = requests.post("http://localhost:8000/upload_policy", 
+                        response = requests.post(f"{BACKEND_URL}/upload_policy", 
                                             files={"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")})
                         if response.status_code == 200:
                             st.success("✅ Policy Rules Ingested!")

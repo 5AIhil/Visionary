@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  ollama:
+    image: ollama/ollama
+    container_name: visionary-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  backend:
+    build: .
+    container_name: visionary-backend
+    command: uvicorn backend.backend:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    volumes:
+      - ./backend:/app/backend
+    depends_on:
+      - ollama
+
+  frontend:
+    build: .
+    container_name: visionary-frontend
+    command: streamlit run frontend/dash.py
+    ports:
+      - "8501:8501"
+    environment:
+      - BACKEND_URL=http://backend:8000
+    volumes:
+      - ./backend:/app/backend
+    depends_on:
+      - backend
+
+volumes:
+  ollama_data:

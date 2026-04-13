@@ -1,14 +1,26 @@
 # 👁️ Visionary: Autonomous AI Workplace Safety Monitor
 
-**Visionary** is an intelligent, real-time computer vision system that autonomously monitors workplace environments for safety compliance. It uses **Retrieval-Augmented Generation (RAG)** to dynamically learn safety policies from PDF manuals and enforces them using a **Vision-Language Model (VLM)**.
+[![CI/CD Pipeline](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-2088FF?logo=github-actions&logoColor=white)](.github/workflows/deploy.yml)
+[![Docker Support](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 
-> 🚀 **Key Differentiator**: Unlike traditional CV systems that are hardcoded for specific objects (e.g., "detect hard hat"), Visionary reads a policy document (e.g., "Construction Site Safety Manual.pdf") and *understands* what to look for, adapting its behavior instantly without retraining.
+**Visionary** is an intelligent, real-time computer vision microservice designed to autonomously monitor workplace environments for safety compliance. Leveraging **Retrieval-Augmented Generation (RAG)** alongside a locally-hosted **Vision-Language Model (VLM)**, the system dynamically parses PDF safety manuals and strictly enforces their protocols via live camera feeds.
+
+> **Technical Differentiator**: Traditional CV systems (like YOLO) require thousands of labeled images and days of retraining to detect new objects. **Visionary** utilizes Zero-Shot Learning—simply upload a new PDF manual, and the AI instantly adapts its reasoning and detection parameters without any retraining.
 
 ---
 
-## 🏗️ Architecture
+## 🌟 Technical Highlights for Recruiters
+- **Generative AI & RAG Engineering**: Designed a pipeline using LangChain and ChromaDB to chunk, embed, and synthesize system personas from raw PDF documents.
+- **Locally Hosted LLM/VLMs**: Deployed `llava-phi3` via Ollama for edge-compute privacy, achieving 0% cloud dependency for image processing.
+- **Microservices Architecture**: Built a decoupled system using **FastAPI** (Backend API), **OpenCV** (IoT camera agent), and **Streamlit** (Frontend Dashboard).
+- **CI/CD & Containerization**: Fully dockerized application orchestrated with `docker-compose`. Automated testing and deployment pipelines managed via **GitHub Actions**.
 
-The system is built with a modular, scalable architecture designed for maintainability and performance.
+---
+
+## 🏗️ Architecture Design
+
+The system is built with a modular, scalable architecture designed for maintainability and edge-device performance.
 
 ```mermaid
 graph TD
@@ -17,11 +29,20 @@ graph TD
     classDef backend fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff;
     classDef storage fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff;
     classDef ai fill:#8b5cf6,stroke:#5b21b6,stroke-width:2px,color:#fff;
+    classDef ci fill:#e11d48,stroke:#9f1239,stroke-width:2px,color:#fff;
 
     %% -----------------------------------------------------------------
-    %% 1. KNOWLEDGE INGESTION SUBGRAPH
+    %% 1. CI/CD & INFRASTRUCTURE
     %% -----------------------------------------------------------------
-    subgraph Data_Ingestion ["🧠 1. Knowledge Ingestion Pipeline"]
+    subgraph Infra ["🐳 Docker CI/CD Infrastructure"]
+        GH(GitHub Actions):::ci --> |Build & Push| Registry(Container Registry):::ci
+        Registry --> |Deploy| Compose[docker-compose Stack]:::ci
+    end
+
+    %% -----------------------------------------------------------------
+    %% 2. KNOWLEDGE INGESTION SUBGRAPH
+    %% -----------------------------------------------------------------
+    subgraph Data_Ingestion ["🧠 Pipeline: Knowledge Ingestion"]
         direction TB
         Upload[Upload Safety PDF] -->|PyPDFLoader| Split[Text Chunking]
         Split -->|nomic-embed-text| ChromaDB[(Chroma Vector DB)]:::storage
@@ -30,9 +51,9 @@ graph TD
     end
 
     %% -----------------------------------------------------------------
-    %% 2. EDGE VISION CAPTURE SUBGRAPH
+    %% 3. EDGE VISION CAPTURE SUBGRAPH
     %% -----------------------------------------------------------------
-    subgraph Edge_Vision ["👁️ 2. IoT Edge Capture (camera.py)"]
+    subgraph Edge_Vision ["👁️ Remote Client: IoT Edge (camera.py)"]
         direction LR
         Webcam((Camera Agent)) -->|Capture 4K| Resize[Resize 640x480]
         Resize -->|Base64 Encode| Throttle{Wait 10s}
@@ -40,9 +61,9 @@ graph TD
     end
 
     %% -----------------------------------------------------------------
-    %% 3. BACKEND ORCHESTRATOR SUBGRAPH
+    %% 4. BACKEND ORCHESTRATOR SUBGRAPH
     %% -----------------------------------------------------------------
-    subgraph Core_Backend ["⚙️ 3. Backend Orchestration (backend.py)"]
+    subgraph Core_Backend ["⚙️ Microservice: Core Orchestration (backend.py)"]
         direction TB
         APIGateway(FastAPI Gateway):::backend
         
@@ -56,9 +77,9 @@ graph TD
     end
 
     %% -----------------------------------------------------------------
-    %% 4. STORAGE & ALERTS SUBGRAPH
+    %% 5. STORAGE & ALERTS SUBGRAPH
     %% -----------------------------------------------------------------
-    subgraph Alerts_Storage ["🛡️ 4. Action & Auditing"]
+    subgraph Alerts_Storage ["🛡️ Action & Auditing"]
         direction TB
         Verdict -->|Yes: Create| Evidence[Save Frame to /evidence]:::storage
         Verdict -->|Yes: Send| Telegram[[Telegram Bot API]]
@@ -68,9 +89,9 @@ graph TD
     end
 
     %% -----------------------------------------------------------------
-    %% 5. DASHBOARD SUBGRAPH
+    %% 6. DASHBOARD SUBGRAPH
     %% -----------------------------------------------------------------
-    subgraph UI ["💻 5. User Interface (dash.py)"]
+    subgraph UI ["💻 Frontend: Command Center (dash.py)"]
         direction LR
         Dashboard(Streamlit App):::frontend
         Dashboard <-->|Toggle Switch| APIGateway
@@ -78,16 +99,16 @@ graph TD
         Dashboard <-->|Load Images| Evidence
     end
 
-    %% Connect the Subgraphs sequentially
+    %% Connect the Subgraphs
     Edge_Vision -.->|Payload| Core_Backend
     SystemPrompt -.->|Loaded by| Core_Backend
+    Compose -.-> |Hosts| Core_Backend
+    Compose -.-> |Hosts| UI
 ```
 
 ---
 
-## 🚀 Why Visionary Replaces Traditional CV (YOLO)
-
-Traditional surveillance systems rely on object-detection models (like YOLO or RetinaNet). While fast, they fail catastrophically when introduced to complex business logic. **Visionary** uses a radically different architecture (Retrieval-Augmented Generation + Multimodal VLMs) that solves the three biggest scaling blockers in the industry:
+## 💼 Business Value: Legacy CV vs Visionary RAG
 
 | Feature | Legacy Systems (YOLO / OpenCV) | **Visionary (VLM + RAG)** |
 | :--- | :--- | :--- |
@@ -98,146 +119,73 @@ Traditional surveillance systems rely on object-detection models (like YOLO or R
 
 ---
 
-## ✨ Key Features
+## 🛠️ Comprehensive Tech Stack
 
-### 1. 📚 Dynamic Policy Learning (RAG)
-- **Upload any PDF manual**: The system embeds the text into a Vector Database (ChromaDB).
-- **Auto-Prompting**: It generates a custom "System Persona" (e.g., *"You are a Safety Officer..."*) tailored to the specific rules in the document.
-- **Strict Adherence**: The AI strictly follows the generated persona, ignoring generic behaviors.
-
-### 2. 👁️ Real-Time Visual Intelligence
-- **Model**: Powered by `llava-phi3`, a state-of-the-art quantized Vision-Language Model running locally via Ollama.
-- **Performance**: Optimized for 0.1 FPS analysis to balance latency and resource usage.
-- **Privacy**: All processing happens locally on-device.
-
-### 3. 📸 Forensic Evidence Vault
-- **Auto-Capture**: When a violation is detected (e.g., "No safety goggles"), the exact video frame is saved to the `backend/evidence/` vault.
-- **Dashboard Integration**: Review logs in the dashboard and see the actual photo evidence side-by-side with the AI's verdict.
-
-### 4. 🛡️ Enterprise-Grade Controls
-- **Backend-Enforced State**: The "Start/Stop" buttons physically gate the backend's processing pipeline.
-- **Connection Resilience**: Dashboard includes auto-retry logic for 60s during system startup (e.g., while models are loading).
-- **Alerts**: Real-time notifications via Telegram bot integration.
+- **Containerization & CI/CD**: Docker, Docker Compose, GitHub Actions
+- **AI / Foundational Models**: Ollama (`llava-phi3` Vision Model, `nomic-embed-text` Embeddings)
+- **RAG Architecture**: LangChain, ChromaDB Vector Store
+- **Backend API**: Python 3.10+, FastAPI, Uvicorn, SQLite3
+- **Frontend Dashboard**: Streamlit, Custom CSS
+- **Edge Devices**: OpenCV (`cv2`), REST via Request Library
+- **Alerts**: Telegram APIs
 
 ---
 
-## 🛠️ Technology Stack
+## 🚀 Quick Start (Docker Installation - Recommended)
 
-- **Core**: Python 3.10+
-- **AI/ML**: Ollama, LangChain, ChromaDB
-- **Backend**: FastAPI, SQLite
-- **Frontend**: Streamlit
-- **Vision**: OpenCV
-
----
-
-## 📂 Project Structure
-
-The project follows a clean, modular structure:
-
-```text
-Visionary/
-├── backend/
-│   ├── backend.py       # API Gateway & Orchestrator
-│   ├── database.py      # SQLite Connection & Logging Logic
-│   ├── alerts.py        # Telegram Notification Logic
-│   ├── rag.py           # RAG Engine (Ingest & Prompt Gen)
-│   ├── evidence/        # Storage for violation snapshots
-│   └── system_prompt.txt # Dynamically generated AI persona
-├── frontend/
-│   ├── dash.py          # Main Dashboard Entry Point
-│   ├── components.py    # Reusable UI Widgets
-│   ├── styles.py        # CSS & Theming
-│   └── camera.py        # IoT Camera Agent
-├── run.py               # Master startup script
-└── requirements.txt     # Dependencies
-```
-
----
-
-## 🚀 Getting Started
+Visionary is fully containerized, making deployment to AWS/GCP or a local environment extremely simple.
 
 ### Prerequisites
-1. **Python 3.10+** installed.
-2. **Ollama** installed:
-   - **macOS/Linux**: `curl -fsSL https://ollama.com/install.sh | sh` or `brew install ollama`
-   - **Windows**: Download from [ollama.com](https://ollama.com/download)
-3. **Start Ollama** (if not running in background):
-   ```bash
-   ollama serve
-   ```
-4. **Pull Required AI Models**:
-   The system requires a Vision model (`llava-phi3`) and an Embedding model (`nomic-embed-text`). Run these commands in your terminal:
-   ```bash
-   ollama pull llava-phi3
-   ollama pull nomic-embed-text
-   ```
+1. Install [Docker & Docker Compose](https://www.docker.com/products/docker-desktop/).
+2. Install Python 3.10+ (for running the local camera capture agent).
 
-### Installation
+### Launching the Infrastructure
+```bash
+# 1. Clone the repository
+git clone https://github.com/Sahil-Choudhary/Visionary.git
+cd Visionary
 
-1. Clone the repository and navigate to the project directory:
-    ```bash
-    git clone https://github.com/yourusername/Visionary.git
-    cd Visionary
-    ```
-2. Set up a Python Virtual Environment:
-    - **macOS/Linux**:
-      ```bash
-      python3 -m venv venv
-      source venv/bin/activate
-      ```
-    - **Windows**:
-      ```cmd
-      python -m venv venv
-      venv\Scripts\activate
-      ```
-3. Install dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
-### Setup Telegram Alerts (Optional)
-To receive real-time notifications on your phone:
-1. **Get Bot Token**: Open Telegram, search and start `@BotFather`. Send `/newbot`, choose a name and username ending in `bot`. Copy the `TELEGRAM_TOKEN` provided.
-2. **Get Chat ID**: Search and start `@userinfobot` to get your `Id`. Copy this as your `TELEGRAM_CHAT_ID`.
-3. **Activate Bot**: Search for your bot's username and click **Start** (mandatory to allow messages).
-4. **Configure Project**: Create a `.env` file in the `backend/` directory:
-   ```env
-   TELEGRAM_TOKEN=your_copied_token
-   TELEGRAM_CHAT_ID=your_copied_chat_id
-   ```
+# 2. Spin up the application stack (Ollama + FastAPI Backend + Streamlit Dashboard)
+docker-compose up -d --build
 
-### Usage
+# 3. Pull the required models into the running Ollama container
+docker exec -it visionary-ollama ollama run llava-phi3
+docker exec -it visionary-ollama ollama pull nomic-embed-text
+```
 
-Run the entire system with a single command:
+### Running the Camera Edge Agent
+*(Note: Mac/Windows users should run the camera script natively on their host machine, as Docker Desktop aggressively sandboxes hardware webcams).*
+```bash
+pip install opencv-python requests
+python frontend/camera.py
+```
 
+Visit the Dashboard at **[http://localhost:8501](http://localhost:8501)** to govern the system!
+
+<details>
+<summary><b>Click here to view manual/local execution steps</b></summary>
+
+### Manual Installation
+If you prefer not to use Docker:
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+*Ensure you have Ollama installed locally and run `ollama serve`.*
 ```bash
 python run.py
 ```
-
-This will launch:
-1.  **Backend Server** (Port 8000)
-2.  **Dashboard** (Port 8501)
-3.  **Camera Agent** (Active immediately)
-
-### Workflow
-1.  Open the Dashboard (`http://localhost:8501`).
-2.  **Upload a Safety Policy PDF**.
-3.  Click **"Ingest Policy"** to train the agent.
-4.  Click **"🚀 Start Operation"**.
-5.  Monitor the feed for alerts!
+</details>
 
 ---
 
-## 🔮 Future Roadmap
-- [ ] Multi-camera support with RTSP streams.
-- [ ] Email/SMS alerts via SMTP/Twilio.
-- [ ] Historical trend analysis & reporting.
+## 📫 Reach Out
+Thank you for checking out Visionary! I'm passionate about architecting scalable backend systems and integrating bleeding-edge Generative AI into practical workflows.
+
+If you are a recruiter or an engineering manager checking out my code, I’d love to connect:
+- **Built By**: Sahil Bhavesh Choudhary
+- **Explore My GitHub**: [https://github.com/Sahil-Choudhary](https://github.com/Sahil-Choudhary)
 
 ---
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-*Built with ❤️ by Sahil Bhavesh Choudhary*
+*Licensed under the MIT License - see the [LICENSE](LICENSE) file for details.*
